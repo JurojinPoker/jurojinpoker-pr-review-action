@@ -73,33 +73,40 @@ setup_env_valid() {
   [[ "$output" == *"prompt_style must be one of"* ]] || fail "Unexpected output: $output"
 }
 
-@test "resolve_instruction_text_prompt_style_team" {
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  mkdir -p "${tmpdir}/.github/pr-review-prompts"
-  echo "STYLE_TEAM_UNIQUE" > "${tmpdir}/.github/pr-review-prompts/team.txt"
-  export GITHUB_WORKSPACE="$tmpdir"
+@test "resolve_instruction_text_prompt_style_missing_action_path" {
+  export ACTION_PATH=""
   export PROMPT_FILE=""
   export PROMPT_STYLE="team"
-  export PROMPTS_BASE_PATH=".github/pr-review-prompts"
+  run resolve_instruction_text
+  [ "$status" -eq 1 ] || fail "Expected status 1, got $status"
+  [[ "$output" == *"ACTION_PATH is required"* ]] || fail "Unexpected output: $output"
+}
+
+@test "resolve_instruction_text_prompt_style_team" {
+  local action_dir
+  action_dir=$(mktemp -d)
+  mkdir -p "${action_dir}/.github/pr-review-prompts"
+  echo "STYLE_TEAM_UNIQUE" > "${action_dir}/.github/pr-review-prompts/team.txt"
+  export ACTION_PATH="$action_dir"
+  export PROMPT_FILE=""
+  export PROMPT_STYLE="team"
   run resolve_instruction_text
   [ "$status" -eq 0 ] || fail "Expected status 0, got $status"
   [[ "$output" == *"STYLE_TEAM_UNIQUE"* ]] || fail "Unexpected output: $output"
-  rm -rf "$tmpdir"
+  rm -rf "$action_dir"
 }
 
 @test "resolve_instruction_text_prompt_style_file_missing" {
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  mkdir -p "${tmpdir}/.github/pr-review-prompts"
-  export GITHUB_WORKSPACE="$tmpdir"
+  local action_dir
+  action_dir=$(mktemp -d)
+  mkdir -p "${action_dir}/.github/pr-review-prompts"
+  export ACTION_PATH="$action_dir"
   export PROMPT_FILE=""
   export PROMPT_STYLE="technical"
-  export PROMPTS_BASE_PATH=".github/pr-review-prompts"
   run resolve_instruction_text
   [ "$status" -eq 1 ] || fail "Expected status 1, got $status"
   [[ "$output" == *"prompt style file not found"* ]] || fail "Unexpected output: $output"
-  rm -rf "$tmpdir"
+  rm -rf "$action_dir"
 }
 
 @test "prepare_prompt_success_plain_suffix" {

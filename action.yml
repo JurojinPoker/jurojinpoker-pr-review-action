@@ -1,5 +1,5 @@
 name: 'JurojinPoker-PR-Reviewer'
-description: 'Review pull requests with OpenAI Chat Completions using configurable prompts from the checked-out repository.'
+description: 'Review pull requests with OpenAI Chat Completions using built-in prompt styles (team, technical, users) or custom prompts from your repo.'
 author: 'JurojinPoker-PR-Reviewer'
 branding:
   icon: git-pull-request
@@ -31,13 +31,9 @@ inputs:
     required: false
     default: ''
   prompt_style:
-    description: 'One of team, technical, or users; resolves {prompts_base_path}/{style}.txt when prompt_file is empty.'
+    description: 'One of team, technical, or users; uses built-in prompts from the action when prompt_file is empty.'
     required: false
     default: ''
-  prompts_base_path:
-    description: 'Directory under the repository root for prompt_style resolution.'
-    required: false
-    default: '.github/pr-review-prompts'
   use_markdown:
     description: 'If true, ask the model for GitHub-flavored Markdown; if false, plain concise text.'
     required: false
@@ -86,7 +82,7 @@ runs:
         MAX_TOKENS: ${{ inputs.MAX_TOKENS }}
         PROMPT_FILE: ${{ inputs.prompt_file }}
         PROMPT_STYLE: ${{ inputs.prompt_style }}
-        PROMPTS_BASE_PATH: ${{ inputs.prompts_base_path }}
+        ACTION_PATH: ${{ github.action_path }}
         USE_MARKDOWN: ${{ inputs.use_markdown }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       run: bash "${{ github.action_path }}/scripts/analyze-code.sh"

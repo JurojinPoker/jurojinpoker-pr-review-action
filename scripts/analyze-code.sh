@@ -17,17 +17,16 @@ validate_required_env() {
 }
 
 # Resolve instruction text only (no diff, no format suffix). Precedence:
-# 1) PROMPT_FILE -> read file under GITHUB_WORKSPACE
-# 2) PROMPT_STYLE + PROMPTS_BASE_PATH -> read {base}/{style}.txt
+# 1) PROMPT_FILE -> read file from GITHUB_WORKSPACE (target repo, custom override)
+# 2) PROMPT_STYLE -> read built-in file from ACTION_PATH (team, technical, users)
 # 3) LEGACY_INSTRUCTION_TEXT
 resolve_instruction_text() {
   local workspace="${GITHUB_WORKSPACE:-.}"
   workspace="${workspace%/}"
+  local action_path="${ACTION_PATH:-}"
 
   local prompt_file="${PROMPT_FILE:-}"
   local prompt_style="${PROMPT_STYLE:-}"
-  local base_path="${PROMPTS_BASE_PATH:-.github/pr-review-prompts}"
-  base_path="${base_path%/}"
 
   if [[ -n "$prompt_file" ]]; then
     local full_path="${workspace}/${prompt_file}"
@@ -47,7 +46,11 @@ resolve_instruction_text() {
         exit 1
         ;;
     esac
-    local full_path="${workspace}/${base_path}/${prompt_style}.txt"
+    if [[ -z "$action_path" ]]; then
+      echo "Error: ACTION_PATH is required when using prompt_style" >&2
+      exit 1
+    fi
+    local full_path="${action_path}/.github/pr-review-prompts/${prompt_style}.txt"
     if [[ ! -f "$full_path" ]]; then
       echo "prompt style file not found: ${full_path}" >&2
       exit 1

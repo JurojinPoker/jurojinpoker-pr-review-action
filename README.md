@@ -2,12 +2,12 @@
 
 GitHub Action that reviews pull requests using **OpenAI Chat Completions** (`/v1/chat/completions`). It reads the PR diff, sends instructions plus the diff to the model, and posts the reply as a **comment on the pull request** (issue comments API), same pattern as [ProductDock/openai-pr-review-action](https://github.com/productdock/openai-pr-review-action).
 
-**You must run `actions/checkout` before this composite action** so instruction files (if you use `prompt_file` or `prompt_style`) exist under `GITHUB_WORKSPACE`. Without checkout, those paths are not available on the runner.
+**You must run `actions/checkout` before this composite action** so `prompt_file` (if used) can be read from your repo. `prompt_style` uses built-in prompts from the action—no files needed in your repository.
 
 ## Features
 
 - Extracts the code diff between base and head SHAs (same as upstream).
-- Resolves review instructions from a file, a named style under a base directory, or a built-in legacy prompt.
+- Resolves review instructions: **prompt_style** (team, technical, users) uses bundled prompts; **prompt_file** overrides with a custom file from your repo; or omit both for legacy behavior.
 - Optional **GitHub Flavored Markdown** in the model output (default on), or plain text.
 - Posts the summary as a PR comment.
 - **Incremental review** (default on): each comment embeds a hidden SHA marker so subsequent pushes to the same PR are reviewed only from where the last review left off, not from scratch.
@@ -55,7 +55,9 @@ jobs:
 
 Replace `YOUR_ORG/JurojinPoker-PR-Reviewer@v1` with your published action reference.
 
-### Explicit prompt file
+### Custom prompt file (override)
+
+Use a file from your repository to override the built-in prompts:
 
 ```yaml
 with:
@@ -65,6 +67,8 @@ with:
   PR_NUMBER: ${{ github.event.pull_request.number }}
   prompt_file: .github/pr-review-prompts/technical.txt
 ```
+
+The file must exist in your repo (path relative to repo root).
 
 ### Legacy behavior (closest to upstream)
 
@@ -91,16 +95,15 @@ Do not set `prompt_file` or `prompt_style` to get the legacy instruction block.
 | `PR_NUMBER` | yes | — | Pull request number. |
 | `GPT_MODEL` | no | `gpt-4o-mini` | Chat model name. |
 | `MAX_TOKENS` | no | `500` | Max tokens for the completion. Increase if comments are truncated (e.g. `1024`). |
-| `prompt_file` | no | *(empty)* | Path **relative to repo root** to the instruction file. Highest precedence. If set and missing, the job **fails**. |
-| `prompt_style` | no | *(empty)* | One of `team`, `technical`, `users`. Resolves `{prompts_base_path}/{style}.txt`. Used only if `prompt_file` is empty. Invalid values fail the job. |
-| `prompts_base_path` | no | `.github/pr-review-prompts` | Directory under the repo root for `prompt_style`. Trailing slashes are normalized. |
+| `prompt_file` | no | *(empty)* | Path **relative to repo root** to a custom instruction file. Highest precedence; overrides `prompt_style`. If set and missing, the job **fails**. |
+| `prompt_style` | no | *(empty)* | One of `team`, `technical`, `users`. Uses **built-in** prompts bundled with the action. No files needed in your repo. Used only if `prompt_file` is empty. |
 | `use_markdown` | no | `true` | If `true`, instructions ask for concise **GFM** (e.g. `##` headings, lists). If `false`, instructions ask for plain concise text. |
 | `incremental_review` | no | `true` | If `true`, each run reviews only the commits added since the previous review. The last reviewed SHA is embedded as a hidden HTML marker in the comment. Falls back to a full diff when no prior review exists or the SHA is no longer reachable (e.g. after a force push). Set to `false` to always review the full PR diff. |
 
 ### Instruction resolution order
 
-1. If `prompt_file` is non-empty → read `${GITHUB_WORKSPACE}/${prompt_file}`; **fail** if the file does not exist.
-2. Else if `prompt_style` is non-empty → read `${GITHUB_WORKSPACE}/${prompts_base_path}/${prompt_style}.txt`; **fail** if not one of `team` \| `technical` \| `users`, or if the file does not exist.
+1. If `prompt_file` is non-empty → read from your repo at `${GITHUB_WORKSPACE}/${prompt_file}`; **fail** if the file does not exist.
+2. Else if `prompt_style` is non-empty → read built-in file from the action at `.github/pr-review-prompts/${prompt_style}.txt`; **fail** if not one of `team` \| `technical` \| `users`.
 3. Else → use the built-in legacy instruction text (similar to ProductDock).
 
 After that, the action appends a short **format** paragraph (Markdown vs plain), then the diff content, in a single user message to the API.
@@ -121,13 +124,15 @@ Fallback to a full diff happens automatically when:
 - The recorded SHA is not reachable in the local git history (force push, interactive rebase).
 - `incremental_review` is set to `false`.
 
-## Sample prompts in this repository
+## Built-in prompt styles
 
-This repo includes example files you can copy or adapt:
+The action bundles three prompt styles (no setup required in your repo):
 
-- [`.github/pr-review-prompts/team.txt`](.github/pr-review-prompts/team.txt)
-- [`.github/pr-review-prompts/technical.txt`](.github/pr-review-prompts/technical.txt)
-- [`.github/pr-review-prompts/users.txt`](.github/pr-review-prompts/users.txt)
+- **team** — Internal team summary (what changed, why, affected areas)
+- **technical** — Technical review (code quality, patterns, edge cases)
+- **users** — User-facing summary (features, UX impact)
+
+Set `prompt_style: team` (or `technical` / `users`) to use them. To use your own prompts, set `prompt_file` with a path to a file in your repository.
 
 ## Differences from ProductDock
 
