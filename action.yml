@@ -85,5 +85,6 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
         USE_MARKDOWN: ${{ inputs.use_markdown }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        IS_INCREMENTAL_FOLLOWUP: ${{ env.IS_INCREMENTAL_FOLLOWUP }}
       run: bash "${{ github.action_path }}/scripts/analyze-code.sh"
       shell: bash

@@ -73,13 +73,20 @@ use_markdown_is_true() {
 format_instruction_suffix() {
   local use_markdown="$1"
   if use_markdown_is_true "$use_markdown"; then
-    printf '%s' "Responde en Markdown compatible con GitHub (GFM). Usa encabezados ## breves y listas cuando ayude; evita respuestas extremadamente largas."
+    printf '%s' "Responde en Markdown compatible con GitHub (GFM). Usa listas cuando ayude; evita respuestas extremadamente largas."
   else
     printf '%s' "Responde en texto plano, sin Markdown; conciso."
   fi
 }
 
-# Prepare the full prompt: instructions + format suffix + diff content.
+# Returns true if IS_INCREMENTAL_FOLLOWUP is "true".
+is_incremental_followup() {
+  local v="${IS_INCREMENTAL_FOLLOWUP:-false}"
+  v=$(echo "$v" | tr '[:upper:]' '[:lower:]')
+  [[ "$v" == "true" ]]
+}
+
+# Prepare the full prompt: instructions + optional followup note + format suffix + diff content.
 prepare_prompt() {
   local diff_file_path="$1"
   local instruction_text="$2"
@@ -98,7 +105,12 @@ prepare_prompt() {
   local format_suffix
   format_suffix=$(format_instruction_suffix "$use_markdown")
 
-  echo -e "${instruction_text}\n\n${format_suffix}\n\n${diff_content}"
+  local followup_note=""
+  if is_incremental_followup; then
+    followup_note=$'\n\n'"Note: this is a follow-up review covering only the new commits added since the last review. Focus exclusively on what changed in this diff. Be even more concise — one sentence is enough if nothing notable changed."
+  fi
+
+  echo -e "${instruction_text}${followup_note}\n\n${format_suffix}\n\n${diff_content}"
 }
 
 # Function to send the prompt to OpenAI API and get the response.
