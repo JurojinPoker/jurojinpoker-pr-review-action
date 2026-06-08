@@ -15,6 +15,7 @@ HEAD_SHA="${HEAD_SHA:-}"
 
 if [[ "$(echo "$INCREMENTAL" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
   echo "DIFF_BASE_SHA=${BASE_SHA}" >> "$GITHUB_ENV"
+  echo "IS_INCREMENTAL_FOLLOWUP=false" >> "$GITHUB_ENV"
   echo "Incremental review disabled. Using PR base SHA: ${BASE_SHA}"
   exit 0
 fi
@@ -34,6 +35,7 @@ LAST_SHA=$(echo "$COMMENTS" \
 if [[ -z "$LAST_SHA" ]]; then
   echo "No previous review marker found. Using full diff from PR base SHA: ${BASE_SHA}"
   echo "DIFF_BASE_SHA=${BASE_SHA}" >> "$GITHUB_ENV"
+  echo "IS_INCREMENTAL_FOLLOWUP=false" >> "$GITHUB_ENV"
   exit 0
 fi
 
@@ -41,8 +43,10 @@ fi
 if ! git cat-file -e "${LAST_SHA}^{commit}" 2>/dev/null; then
   echo "Marker SHA ${LAST_SHA} not found in local history (possible force push). Falling back to PR base SHA: ${BASE_SHA}"
   echo "DIFF_BASE_SHA=${BASE_SHA}" >> "$GITHUB_ENV"
+  echo "IS_INCREMENTAL_FOLLOWUP=false" >> "$GITHUB_ENV"
   exit 0
 fi
 
 echo "Incremental review: diffing from ${LAST_SHA} to ${HEAD_SHA}"
 echo "DIFF_BASE_SHA=${LAST_SHA}" >> "$GITHUB_ENV"
+echo "IS_INCREMENTAL_FOLLOWUP=true" >> "$GITHUB_ENV"
